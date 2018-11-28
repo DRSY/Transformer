@@ -94,9 +94,10 @@ class BERT_Trainer:
 
     def build_dataset(self):
         class MyDataSet(data.Dataset):
-            def __init__(self, datas):
+            def __init__(self, datas, idx2word, word2idx):
                 super().__init__()
                 self.data = datas
+                self.idx2word = idx2word
 
             def __len__(self):
                 return len(self.data)
@@ -106,17 +107,32 @@ class BERT_Trainer:
                 words = sentence.strip().split(" ")
                 while len(words) < BERT_Trainer.src_MAXLEN:
                     words.append(BERT_Trainer.PAD)
+                masking = [0] * BERT_Trainer.src_MAXLEN
                 for i, word in enumerate(words):
                     n = BERT_Trainer.getRandomNumber(1, 100)
                     if n / 100 < BERT_Trainer.mask_rate:
                         m = BERT_Trainer.getRandomNumber(1, 100)
                         if m / 100 < 0.8:
+                            """
+                                replace the word with MASK
+                            """
                             words[i] = BERT_Trainer.MASK
-                        elif 0.9 > m / 100 >=0.8:
-                            pass
+                            masking[i] = 1
+                        elif 0.9 > m / 100 >= 0.8:
+                            """
+                                replace the word with random words from vocab
+                            """
+                            words[i] = random.choice(self.idx2word)
                         else:
+                            """
+                                let the word stay unchanged
+                            """
                             pass
-        return MyDataSet(self.datas)
+                datas = torch.tensor(list(map(lambda word: self.word2idx[word.lower()], words)), dtype=torch.long)
+                masking = torch.tensor(masking, dtype=torch.long)
+                return datas, masking
+                    
+        return MyDataSet(self.datas, self.idx2word, self.word2idx)
 
     def train(self, model: nn.Module, optimizer, loss_function):
         """
