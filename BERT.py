@@ -3,6 +3,7 @@ import time
 from typing import Callable, Dict, List, Tuple
 import copy
 import os
+import random
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -35,15 +36,26 @@ class BERT_Trainer:
         architecture
     """
 
+    mask_rate = 0.15
     PAD = '<pad>'
+    MASK = '<mask>'
+    src_MAXLEN = 0
 
-    def __init__(self, mask_rate=0.15):
+    def __init__(self):
         super().__init__()
-        self.mask_rate = mask_rate
         self.datas = self.generateFakedata()
         self.word2idx = {}
         self.idx2word = []
         self.wordcounter = {}
+
+    @staticmethod
+    def getRandomNumber(self, low, high):
+        """
+            get random number in [low, high]
+        """
+        random.seed(1)
+        n = random.randint(low, high)
+        return n
 
     def generateFakedata(self):
         """
@@ -64,10 +76,13 @@ class BERT_Trainer:
 
     def build_vocab(self):
         self.word2idx[BERT_Trainer.PAD] = len(self.word2idx)
+        self.word2idx[BERT_Trainer.MASK] = len(self.word2idx)
         self.idx2word.append(BERT_Trainer.PAD)
+        self.idx2word.append(BERT_Trainer.MASK)
         for sentence in self.datas:
             sentence = sentence.strip()
             words = sentence.split()
+            BERT_Trainer.src_MAXLEN = max(BERT_Trainer.src_MAXLEN, len(words))
             for word in words:
                 self.wordcounter[word] = self.wordcounter.get(word, 0) + 1
                 if word not in self.word2idx:
@@ -75,6 +90,7 @@ class BERT_Trainer:
                     self.idx2word.append(word)
         print("build vocab done...")
         print("total distince words:{}".format(len(self.idx2word)))
+        print("src_MAXLEN:{}".format(BERT_Trainer.src_MAXLEN))
 
     def build_dataset(self):
         class MyDataSet(data.Dataset):
@@ -86,12 +102,24 @@ class BERT_Trainer:
                 return len(self.data)
 
             def __getitem__(self, index):
-                raise NotImplementedError
+                sentence = self.data[index]
+                words = sentence.strip().split(" ")
+                while len(words) < BERT_Trainer.src_MAXLEN:
+                    words.append(BERT_Trainer.PAD)
+                for i, word in enumerate(words):
+                    n = BERT_Trainer.getRandomNumber(1, 100)
+                    if n / 100 < BERT_Trainer.mask_rate:
+                        m = BERT_Trainer.getRandomNumber(1, 100)
+                        if m / 100 < 0.8:
+                            words[i] = BERT_Trainer.MASK
+                        elif 0.9 > m / 100 >=0.8:
+                            pass
+                        else:
+                            pass
+        return MyDataSet(self.datas)
 
     def train(self, model: nn.Module, optimizer, loss_function):
         """
             train the model
         """
         raise NotImplementedError
-
-
