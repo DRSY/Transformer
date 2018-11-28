@@ -76,9 +76,7 @@ class BERT_Trainer:
 
     def build_vocab(self):
         self.word2idx[BERT_Trainer.PAD] = len(self.word2idx)
-        self.word2idx[BERT_Trainer.MASK] = len(self.word2idx)
         self.idx2word.append(BERT_Trainer.PAD)
-        self.idx2word.append(BERT_Trainer.MASK)
         for sentence in self.datas:
             sentence = sentence.strip()
             words = sentence.split()
@@ -109,6 +107,8 @@ class BERT_Trainer:
                     words.append(BERT_Trainer.PAD)
                 masking = [0] * BERT_Trainer.src_MAXLEN
                 for i, word in enumerate(words):
+                    if word == BERT_Trainer.PAD:
+                        break
                     n = BERT_Trainer.getRandomNumber(1, 100)
                     if n / 100 < BERT_Trainer.mask_rate:
                         m = BERT_Trainer.getRandomNumber(1, 100)
@@ -122,16 +122,20 @@ class BERT_Trainer:
                             """
                                 replace the word with random words from vocab
                             """
-                            words[i] = random.choice(self.idx2word)
+                            while True:
+                                words[i] = random.choice(self.idx2word)
+                                if words[i] != BERT_Trainer.PAD:
+                                    break
                         else:
                             """
                                 let the word stay unchanged
                             """
                             pass
-                datas = torch.tensor(list(map(lambda word: self.word2idx[word.lower()], words)), dtype=torch.long)
+                datas = torch.tensor(
+                    list(map(lambda word: self.word2idx[word.lower()], words)), dtype=torch.long)
                 masking = torch.tensor(masking, dtype=torch.long)
                 return datas, masking
-                    
+
         return MyDataSet(self.datas, self.idx2word, self.word2idx)
 
     def train(self, model: nn.Module, optimizer, loss_function):
