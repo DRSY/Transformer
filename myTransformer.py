@@ -125,3 +125,18 @@ class Transformer(nn.Module):
         d_outputs = self.decoder(trg, e_outputs, src_mask, trg_mask)
         outputs = self.output_layer(d_outputs)
         return outputs
+
+
+class Transformer_Encoder(nn.Module):
+    """
+        Only the Transformer Encoder
+    """
+    def __init__(self, dmodel, vocab_size, heads, N, src_maxlen):
+        super().__init__()
+        self.encoder = Encoder(dmodel, vocab_size, heads, N, src_maxlen)
+        self.output_layer = nn.Linear(dmodel, vocab_size)
+
+    def forward(self, src, src_mask):
+        e_outputs = self.encoder(src, src_mask)
+        output = self.output_layer(e_outputs)
+        return output
