@@ -41,6 +41,8 @@ class BERT_Trainer:
     MASK = '<mask>'
     src_MAXLEN = 0
 
+    log_step = 5
+
     def __init__(self, verbose=True):
         super().__init__()
         self.datas = self.generateFakedata()
@@ -48,6 +50,7 @@ class BERT_Trainer:
         self.idx2word = []
         self.wordcounter = {}
         self.epochs = args.epochs
+        self.verbose = verbose
 
         self.dataset = self.build_dataset(
             self.datas, self.idx2word, self.word2idx)
@@ -114,7 +117,7 @@ class BERT_Trainer:
                 while len(words) < BERT_Trainer.src_MAXLEN:
                     words.append(BERT_Trainer.PAD)
                 masking = [0] * BERT_Trainer.src_MAXLEN
-                original_words = []
+                original_words = [BERT_Trainer.MASK] * BERT_Trainer.src_MAXLEN
                 for i, word in enumerate(words):
                     if word == BERT_Trainer.PAD:
                         break
@@ -127,7 +130,7 @@ class BERT_Trainer:
                             """
                             words[i] = BERT_Trainer.MASK
                             masking[i] = 1
-                            original_words.append(word)
+                            original_words[i] = copy.deepcopy(word)
                         elif 0.9 > m / 100 >= 0.8:
                             """
                                 replace the word with random words from vocab
@@ -166,8 +169,24 @@ class BERT_Trainer:
         start = time.time()
         print("train start...")
         for epoch in range(self.epochs):
+            loss_ = .0
             for i, (data, masking, original) in enumerate(self.loader):
-                pass
+                optimizer.zero_grad()
+                src_mask = create_mask_src(data)
+                pred = model(data, src_mask)  # (batch, MAXLEN, vocab_size)
+                pred = pred.view(-1, pred.size(-1))
+                masking = masking.view(-1)
+                mask_pred = pred[masking == 1]  # (xx, vocab_size)
+                original = original.view(-1)
+                original = original[original !=
+                                    self.word2idx[BERT_Trainer.MASK]]  # (xx)
+                loss = loss_function(mask_pred, original)
+                loss_ += loss.item()
+                loss.backward()
+                optimizer.step()
+            loss_ /= len(self.loader)
+            if self.verbose and epoch+1 % BERT_Trainer.log_step == 0:
+                print("epoch:{}, loss:{}".format(epoch+1, loss_))
         end = time.time()
         print("train done..")
         print("cost {}seconds".format(end-start))
