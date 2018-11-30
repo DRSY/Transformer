@@ -165,6 +165,7 @@ class BERT_Trainer:
         """
             train the model
         """
+        self.initialize_model(model)
         model.train()
         start = time.time()
         print("train start...")
@@ -190,3 +191,12 @@ class BERT_Trainer:
         end = time.time()
         print("train done..")
         print("cost {}seconds".format(end-start))
+
+
+if __name__ == "__main__":
+    bert_trainer = BERT_Trainer()
+    model = Transformer_Encoder(args.dmodel, len(
+        bert_trainer.idx2word), args.heads, args.N, bert_trainer.src_MAXLEN)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    loss_function = nn.CrossEntropyLoss()
+    bert_trainer.train()
