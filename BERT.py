@@ -41,12 +41,17 @@ class BERT_Trainer:
     MASK = '<mask>'
     src_MAXLEN = 0
 
-    def __init__(self):
+    def __init__(self, verbose=True):
         super().__init__()
         self.datas = self.generateFakedata()
         self.word2idx = {}
         self.idx2word = []
         self.wordcounter = {}
+        self.epochs = args.epochs
+
+        self.dataset = self.build_dataset(
+            self.datas, self.idx2word, self.word2idx)
+        self.loader = data.DataLoader(self.dataset, batch_size=2, shuffle=True)
 
     @staticmethod
     def getRandomNumber(self, low, high):
@@ -76,7 +81,9 @@ class BERT_Trainer:
 
     def build_vocab(self):
         self.word2idx[BERT_Trainer.PAD] = len(self.word2idx)
+        self.word2idx[BERT_Trainer.MASK] = len(self.word2idx)
         self.idx2word.append(BERT_Trainer.PAD)
+        self.idx2word.append(BERT_Trainer.MASK)
         for sentence in self.datas:
             sentence = sentence.strip()
             words = sentence.split()
@@ -96,6 +103,7 @@ class BERT_Trainer:
                 super().__init__()
                 self.data = datas
                 self.idx2word = idx2word
+                self.word2idx = word2idx
 
             def __len__(self):
                 return len(self.data)
@@ -106,6 +114,7 @@ class BERT_Trainer:
                 while len(words) < BERT_Trainer.src_MAXLEN:
                     words.append(BERT_Trainer.PAD)
                 masking = [0] * BERT_Trainer.src_MAXLEN
+                original_words = []
                 for i, word in enumerate(words):
                     if word == BERT_Trainer.PAD:
                         break
@@ -118,6 +127,7 @@ class BERT_Trainer:
                             """
                             words[i] = BERT_Trainer.MASK
                             masking[i] = 1
+                            original_words.append(word)
                         elif 0.9 > m / 100 >= 0.8:
                             """
                                 replace the word with random words from vocab
@@ -134,12 +144,30 @@ class BERT_Trainer:
                 datas = torch.tensor(
                     list(map(lambda word: self.word2idx[word.lower()], words)), dtype=torch.long)
                 masking = torch.tensor(masking, dtype=torch.long)
-                return datas, masking
+                original_words = torch.tensor(
+                    list(map(lambda word: self.word2idx[word.lower()])), dtype=torch.long)
+                return datas, masking, original_words
 
         return MyDataSet(self.datas, self.idx2word, self.word2idx)
+
+    def initialize_model(self, model):
+        """
+            initialize model's params using xavier_uniform_
+        """
+        for p in model.parameters():
+            if p.dim() > 1:
+                torch.nn.init.xavier_uniform_(p)
 
     def train(self, model: nn.Module, optimizer, loss_function):
         """
             train the model
         """
-        raise NotImplementedError
+        model.train()
+        start = time.time()
+        print("train start...")
+        for epoch in range(self.epochs):
+            for i, (data, masking, original) in enumerate(self.loader):
+                pass
+        end = time.time()
+        print("train done..")
+        print("cost {}seconds".format(end-start))
