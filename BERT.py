@@ -4,8 +4,8 @@ from typing import Callable, Dict, List, Tuple
 import copy
 import os
 import random
+random.seed(1)
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
@@ -45,23 +45,23 @@ class BERT_Trainer:
 
     def __init__(self, verbose=True):
         super().__init__()
-        self.datas = self.generateFakedata()
         self.word2idx = {}
         self.idx2word = []
         self.wordcounter = {}
         self.epochs = args.epochs
         self.verbose = verbose
 
-        self.dataset = self.build_dataset(
-            self.datas, self.idx2word, self.word2idx)
-        self.loader = data.DataLoader(self.dataset, batch_size=2, shuffle=True)
+        self.datas = self.generateFakedata()
+        self.build_vocab()
+        self.dataset = self.build_dataset()
+        self.loader = data.DataLoader(
+            self.dataset, batch_size=args.batch, shuffle=True)
 
     @staticmethod
-    def getRandomNumber(self, low, high):
+    def getRandomNumber(low, high):
         """
             get random number in [low, high]
         """
-        random.seed(1)
         n = random.randint(low, high)
         return n
 
@@ -70,9 +70,13 @@ class BERT_Trainer:
             generate fake data for masked language model task
         """
         datas = [
-            "I like to shop ine morning",
+            "I like to shop in morning",
             "There are a lot of beautiful things in the world",
             "Math may be the hardest subject in high school",
+            "I like computer science",
+            "Computer is a good tool",
+            "Sometimes it is hard to fall asleep in night",
+            "It is hard to be great",
         ]
         return datas
 
@@ -92,6 +96,7 @@ class BERT_Trainer:
             words = sentence.split()
             BERT_Trainer.src_MAXLEN = max(BERT_Trainer.src_MAXLEN, len(words))
             for word in words:
+                word = word.lower()
                 self.wordcounter[word] = self.wordcounter.get(word, 0) + 1
                 if word not in self.word2idx:
                     self.word2idx[word] = len(self.word2idx)
@@ -148,7 +153,7 @@ class BERT_Trainer:
                     list(map(lambda word: self.word2idx[word.lower()], words)), dtype=torch.long)
                 masking = torch.tensor(masking, dtype=torch.long)
                 original_words = torch.tensor(
-                    list(map(lambda word: self.word2idx[word.lower()])), dtype=torch.long)
+                    list(map(lambda word: self.word2idx[word.lower()], original_words)), dtype=torch.long)
                 return datas, masking, original_words
 
         return MyDataSet(self.datas, self.idx2word, self.word2idx)
@@ -177,6 +182,8 @@ class BERT_Trainer:
                 pred = model(data, src_mask)  # (batch, MAXLEN, vocab_size)
                 pred = pred.view(-1, pred.size(-1))
                 masking = masking.view(-1)
+                if torch.max(masking)==0:
+                    continue
                 mask_pred = pred[masking == 1]  # (xx, vocab_size)
                 original = original.view(-1)
                 original = original[original !=
@@ -186,11 +193,10 @@ class BERT_Trainer:
                 loss.backward()
                 optimizer.step()
             loss_ /= len(self.loader)
-            if self.verbose and epoch+1 % BERT_Trainer.log_step == 0:
-                print("epoch:{}, loss:{}".format(epoch+1, loss_))
+            print("epoch:{}, loss:{}".format(epoch+1, loss_))
         end = time.time()
         print("train done..")
-        print("cost {}seconds".format(end-start))
+        print("cost {} seconds".format(end-start))
 
 
 if __name__ == "__main__":
@@ -199,4 +205,4 @@ if __name__ == "__main__":
         bert_trainer.idx2word), args.heads, args.N, bert_trainer.src_MAXLEN)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     loss_function = nn.CrossEntropyLoss()
-    bert_trainer.train()
+    bert_trainer.train(model, optimizer, loss_function)
