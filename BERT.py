@@ -4,7 +4,6 @@ from typing import Callable, Dict, List, Tuple
 import copy
 import os
 import random
-random.seed(1)
 
 import numpy as np
 import torch
@@ -22,7 +21,6 @@ parser.add_argument("--heads", type=int, default=8, required=True)
 parser.add_argument("--N", type=int, default=6, required=True)
 parser.add_argument("--epochs", type=int, default=100, required=True)
 parser.add_argument("--batch", type=int, default=64, required=True)
-parser.add_argument("--train", type=bool, required=True)
 args = parser.parse_args()
 
 
@@ -37,6 +35,7 @@ class BERT_Trainer:
     """
 
     mask_rate = 0.15
+    masking_mask_rate = 0.8
     PAD = '<pad>'
     MASK = '<mask>'
     src_MAXLEN = 0
@@ -45,6 +44,7 @@ class BERT_Trainer:
 
     def __init__(self, verbose=True):
         super().__init__()
+        random.seed(42)
         self.word2idx = {}
         self.idx2word = []
         self.wordcounter = {}
@@ -77,14 +77,10 @@ class BERT_Trainer:
             "Computer is a good tool",
             "Sometimes it is hard to fall asleep in night",
             "It is hard to be great",
+            "China is a great country",
+            "Computer science is my favorite",
         ]
         return datas
-
-    def mask(self):
-        """
-            mask the input sentence with certain probability
-        """
-        raise NotImplementedError
 
     def build_vocab(self):
         self.word2idx[BERT_Trainer.PAD] = len(self.word2idx)
@@ -123,13 +119,15 @@ class BERT_Trainer:
                     words.append(BERT_Trainer.PAD)
                 masking = [0] * BERT_Trainer.src_MAXLEN
                 original_words = [BERT_Trainer.MASK] * BERT_Trainer.src_MAXLEN
+
+                ## masking procedure
                 for i, word in enumerate(words):
                     if word == BERT_Trainer.PAD:
                         break
                     n = BERT_Trainer.getRandomNumber(1, 100)
                     if n / 100 < BERT_Trainer.mask_rate:
                         m = BERT_Trainer.getRandomNumber(1, 100)
-                        if m / 100 < 0.8:
+                        if m / 100 < BERT_Trainer.masking_mask_rate:
                             """
                                 replace the word with MASK
                             """
@@ -166,9 +164,9 @@ class BERT_Trainer:
             if p.dim() > 1:
                 torch.nn.init.xavier_uniform_(p)
 
-    def train(self, model: nn.Module, optimizer, loss_function):
+    def train_maskedLM(self, model: nn.Module, optimizer, loss_function):
         """
-            train the model
+            train the model with masked language model task
         """
         self.initialize_model(model)
         model.train()
@@ -182,7 +180,7 @@ class BERT_Trainer:
                 pred = model(data, src_mask)  # (batch, MAXLEN, vocab_size)
                 pred = pred.view(-1, pred.size(-1))
                 masking = masking.view(-1)
-                if torch.max(masking)==0:
+                if torch.max(masking) == 0:
                     continue
                 mask_pred = pred[masking == 1]  # (xx, vocab_size)
                 original = original.view(-1)
@@ -205,4 +203,4 @@ if __name__ == "__main__":
         bert_trainer.idx2word), args.heads, args.N, bert_trainer.src_MAXLEN)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     loss_function = nn.CrossEntropyLoss()
-    bert_trainer.train(model, optimizer, loss_function)
+    bert_trainer.train_maskedLM(model, optimizer, loss_function)
