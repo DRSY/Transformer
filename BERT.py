@@ -26,7 +26,9 @@ args = parser.parse_args()
 
 class BERT_Trainer:
     """
-        The helper class to train the transformer model with 2 taskk
+        The BERT model only consist of the Transformer Encoder and throw the Transformer Decoder away.
+
+        The helper class to train the BERT model with 2 taskk
         1.masked language model
         2.next sentence prediction
 
