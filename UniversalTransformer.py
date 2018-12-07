@@ -8,6 +8,7 @@ class CoordinateEmbedding(nn.Module):
         The CoordinateEmbedding Layer Pt
         P(pos,t,2j) = sin(pos/10000^(2j/dmodel))+sin(t/10000^(2j/dmodel))
         P(pos,t,2j+1) = cos(pos/10000^(2j/dmodel))+cos(t/10000^(2j/dmodel))
+        add timestep consideration
     """
 
     def __init__(self, dmodel, MAXLEN=90):
