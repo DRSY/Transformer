@@ -70,6 +70,34 @@ class EncoderLayer_(nn.Module):
         return x
 
 
+class DecoderLayer_(nn.Module):
+    """
+        Weighted Transformer Network Decoder layer
+    """
+
+    def __init__(self, dmodel, heads, dropout=0.1):
+        self.masked_attn = MultiheadAttention(dmodel, heads)
+        self.attn = MoutipleBranchAttention(dmodel, heads)
+        self.ffn = Feedforward_alpha(dmodel, heads)
+        self.layernorm1 = nn.LayerNorm(dmodel)
+        self.layernorm2 = nn.LayerNorm(dmodel)
+        self.layernorm3 = nn.LayerNorm(dmodel)
+        self.drop_out1 = nn.Dropout(dropout)
+        self.drop_out2 = nn.Dropout(dropout)
+        self.drop_out3 = nn.Dropout(dropout)
+
+    def forward(self, x, e_outputs, src_mask, trg_mask):
+        xx = self.layernorm1(x)
+        x = x + self.drop_out1(self.masked_attn(xx))
+
+        # shape of xx:(bs, length, dmodel)
+        xx = self.drop_out2(self.attn(x))
+        xx = self.drop_out3(self.ffn(xx))
+
+        x = self.layernorm2(x+xx)
+        return x
+
+
 class DecoderLayer(nn.Module):
     def __init__(self, dmodel, heads, dropout=0.1):
         super().__init__()

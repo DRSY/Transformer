@@ -112,7 +112,8 @@ class Feedforward_alpha(nn.Module):
         self.l1 = nn.Linear(self.dmodel, Feedforward_alpha.dff)
         self.l2 = nn.Linear(Feedforward_alpha.dff, self.dmodel)
         self.drop_out = nn.Dropout(dropout)
-        self.alpha = nn.Parameter(torch.randn(self.heads, dtype=torch.float).unsqueeze(0).unsqueeze(-1).unsqueeze(-1))
+        self.alpha = nn.Parameter(torch.randn(
+            self.heads, dtype=torch.float).unsqueeze(0).unsqueeze(-1).unsqueeze(-1))
 
     def forward(self, x):
         # shape of x:(bs, heads, length, dmodel)
