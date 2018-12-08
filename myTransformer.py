@@ -141,6 +141,28 @@ class Encoder(nn.Module):
         return self.final_norm(x)
 
 
+class Encoder_(nn.Module):
+    """
+        Weighted Transformer Encoder
+    """
+
+    def __init__(self, dmodel, vocab_size, heads, N, maxlen):
+        self.dmodel = dmodel
+        self.vocab_size = vocab_size
+        self.word_embedding = nn.Embedding(self.vocab_size, self.dmodel)
+        self.position_encoding = PositionalEncoding(self.dmodel, maxlen)
+        self.layers = clonelayers(EncoderLayer_(self.dmodel, heads), N)
+        self.final_norm = nn.LayerNorm(self.dmodel)
+
+    def forward(self, x, mask=None):
+        x = self.word_embedding(x)
+        x = self.position_encoding(x)
+        for i, layer in enumerate(self.layers):
+            x = layer(x, mask)
+        x = self.final_norm(x)
+        return x
+
+
 class Decoder(nn.Module):
     def __init__(self, dmodel, vocab_size, heads, N, maxlen):
         super().__init__()
@@ -161,7 +183,35 @@ class Decoder(nn.Module):
         return x
 
 
+class Decoder_(nn.Module):
+    """
+        Weighted Transformer Decoder
+    """
+
+    def __init__(self, dmodel, vocab_size, heads, N, maxlen):
+        super().__init__()
+        self.dmodel = dmodel
+        self.vocab_size = vocab_size
+        self.N = N
+        self.word_embedding = nn.Embedding(self.vocab_size, self.dmodel)
+        self.position_encoding = PositionalEncoding(self.dmodel, maxlen)
+        self.layers = clonelayers(DecoderLayer(self.dmodel, heads), N)
+        self.final_norm = nn.LayerNorm(self.dmodel)
+
+    def forward(self, x, e_outputs, src_mask, trg_mask):
+        x = self.word_embedding(x)
+        x = self.position_encoding(x)
+        for i, layer in enumerate(self.layers):
+            x = layer(x, e_outputs, src_mask, trg_mask)
+        x = self.final_norm(x)
+        return x
+
+
 class Transformer(nn.Module):
+    """
+        vanila Transformer NetWork
+    """
+
     def __init__(self, dmodel, vocab_size, heads, N_encoder, N_decoder, src_maxlen, trg_maxlen):
         super().__init__()
         self.encoder = Encoder(dmodel, vocab_size, heads,
@@ -177,9 +227,29 @@ class Transformer(nn.Module):
         return outputs
 
 
+class WeightedTransformer(nn.Module):
+    """
+        Weighted Transformer NetWork
+    """
+
+    def __init__(self, dmodel, vocab_size, heads, N_encoder, N_decoder, src_maxlen, trg_maxlen):
+        self.encoder = Encoder_(
+            dmodel, vocab_size, heads, N_encoder, src_maxlen)
+        self.decoder = Decoder_(
+            dmodel, vocab_size, heads, N_decoder, trg_maxlen)
+        self.output_layer = nn.Linear(dmodel, vocab_size)
+
+    def forward(self, input, target, src_mask, trg_mask):
+        encoder_output = self.encoder(input, src_mask)
+        decoder_output = self.decoder(
+            target, encoder_output, src_mask, trg_mask)
+        output = self.output_layer(decoder_output)
+        return output
+
+
 class Transformer_Encoder(nn.Module):
     """
-        Only the Transformer Encoder
+        Only the Transformer Encoder of vanila Transformer
     """
 
     def __init__(self, dmodel, vocab_size, heads, N, src_maxlen):
