@@ -30,9 +30,10 @@ class MultiheadAttention(nn.Module):
     """
         implement scaled dot product attention operation in number of heads parallely
     """
+
     def __init__(self, dmodel, heads, dropout=0.1):
         super().__init__()
-        assert dmodel % heads == 0
+        assert dmodel % heads == 0, "dimension not match"
         self.dmodel = dmodel
         self.heads = heads
         self.dk = dmodel // heads
@@ -53,6 +54,7 @@ class Feedforward(nn.Module):
     """
         Simple two layer FFN
     """
+
     def __init__(self, dmodel, dropout=0.1):
         super().__init__()
         self.dff = 2048
@@ -63,4 +65,61 @@ class Feedforward(nn.Module):
     def forward(self, input):
         x = self.drop_out(F.relu(self.l1(input)))
         x = self.l2(x)
+        return x
+
+
+class MoutipleBranchAttention(nn.Module):
+    """
+        The attention layer described in Weighted Transformer Network
+    """
+
+    def __init__(self, dmodel, heads, dropout=0.2):
+        self.dmodel = dmodel
+        self.heads = heads
+        assert dmodel % heads == 0, "dimension not match"
+        self.dk = self.dmodel / self.heads
+        self.linears = utils.clonelayers(nn.Linear(dmodel, dmodel), 3)
+        self.wo = nn.Linear(self.dk, self.dmodel)
+        self.drop_out = nn.Dropout(dropout)
+        self.k = nn.Parameter(torch.randn(self.heads, dtype=torch.float).unsqueeze(
+            0).unsqueeze(-1).unsqueeze(-1))
+
+    def forward(self, query, key, value, mask=None):
+        bs = query.size(0)
+        query, key, value = [l(x).view(bs, -1, self.heads, self.dk).transpose(1, 2)
+                             for x, l in zip([query, key, value], self.linears)]
+        # shape:(bs, heads, length, dk)
+        outputs, _ = attention(query, key, value, mask, self.drop_out)
+
+        # shape:(bs, heads, length, dmodel)
+        outputs = self.wo(outputs)
+        # shape:(bs, heads, length, dmodel)
+        outputs = outputs * self.k
+        return outputs
+
+
+class Feedforward_alpha(nn.Module):
+    """
+        The FFN layer described in Weighted Transformer Network
+    """
+
+    dff = 2048
+
+    def __init__(self, dmodel, heads, dropout=0.2):
+        super().__init__()
+        self.heads = heads
+        self.dmodel = dmodel
+        self.l1 = nn.Linear(self.dmodel, Feedforward_alpha.dff)
+        self.l2 = nn.Linear(Feedforward_alpha.dff, self.dmodel)
+        self.drop_out = nn.Dropout(dropout)
+        self.alpha = nn.Parameter(torch.randn(self.heads, dtype=torch.float).unsqueeze(0).unsqueeze(-1).unsqueeze(-1))
+
+    def forward(self, x):
+        # shape of x:(bs, heads, length, dmodel)
+        x = self.drop_out(F.relu(self.l1(x)))
+        x = self.l2(x)
+
+        # shape:(bs, length, dmodel)
+        x = x * self.alpha
+        x = torch.sum(x, 1)
         return x
