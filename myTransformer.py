@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import random
 import torch.utils.data as data
-from MultiheadAttention import MultiheadAttention, Feedforward
+from MultiheadAttention import MultiheadAttention, Feedforward, MoutipleBranchAttention, Feedforward_alpha
 import math
 from utils import clonelayers, create_mask
 
@@ -45,6 +45,28 @@ class EncoderLayer(nn.Module):
 
         xx = self.layernorm2(x)
         x = x + self.drop_out2(self.ffn(xx))
+        return x
+
+
+class EncoderLayer_(nn.Module):
+    """
+        Weighted Transformer Network Encoder Layer
+    """
+
+    def __init__(self, dmodel, heads, dropout=0.1):
+        super().__init__()
+        self.attn = MoutipleBranchAttention(dmodel, heads)
+        self.ffn = Feedforward_alpha(dmodel, heads)
+        self.layernorm1 = nn.LayerNorm(dmodel)
+        self.layernorm2 = nn.LayerNorm(dmodel)
+        self.drop_out1 = nn.Dropout(dropout)
+        self.drop_out2 = nn.Dropout(dropout)
+
+    def forward(self, x, mask=None):
+        # shape of x:(bs, length, dmodel)
+        xx = self.drop_out1(self.attn(xx))
+        xx = self.drop_out2(self.ffn(xx))
+        x = self.layernorm1(x + xx)
         return x
 
 
