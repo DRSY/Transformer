@@ -146,9 +146,11 @@ class BERT_Trainer:
                                     break
                         else:
                             """
-                                let the word stay unchanged
+                                let the word remain unchanged, but still need to predict it.
                             """
-                            pass
+                            masking[i] = 1
+                            original_words[i] = copy.deepcopy(word)
+
                 datas = torch.tensor(
                     list(map(lambda word: self.word2idx[word.lower()], words)), dtype=torch.long)
                 masking = torch.tensor(masking, dtype=torch.long)
@@ -166,7 +168,7 @@ class BERT_Trainer:
             if p.dim() > 1:
                 torch.nn.init.xavier_uniform_(p)
 
-    def train_maskedLM(self, model: nn.Module, optimizer, loss_function):
+    def train_maskedLM(self, model: nn.Module, optimizer: optim, loss_function):
         """
             train the model with masked language model task
         """
