@@ -81,6 +81,12 @@ class BERT_Trainer:
             "It is hard to be great",
             "China is a great country",
             "Computer science is my favorite",
+            "I like my mother",
+            "I like my father",
+            "Take care of yourself when I am gone",
+            "Do not waste your time doing something not worth it",
+            "I can not wait to play that game",
+            "I can not wait to see that film",
         ]
         return datas
 
@@ -122,7 +128,7 @@ class BERT_Trainer:
                 masking = [0] * BERT_Trainer.src_MAXLEN
                 original_words = [BERT_Trainer.MASK] * BERT_Trainer.src_MAXLEN
 
-                ## masking procedure
+                # masking procedure
                 for i, word in enumerate(words):
                     if word == BERT_Trainer.PAD:
                         break
